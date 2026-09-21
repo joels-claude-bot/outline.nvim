@@ -36,13 +36,15 @@ local function setup_global_autocmd()
   })
   vim.api.nvim_create_autocmd('TabClosed', {
     pattern = '*',
-    callback = function(o)
-      local tab = tonumber(o.file)
-      local s = M.sidebars[tab]
-      if s then
-        s:destroy()
+    callback = function()
+      -- TabClosed reports a tab number, but sidebars are keyed by tabpage ID.
+      -- Numbers change when tabs are closed or moved; IDs do not.
+      for tab, s in pairs(M.sidebars) do
+        if not vim.api.nvim_tabpage_is_valid(tab) then
+          s:destroy()
+          M.sidebars[tab] = nil
+        end
       end
-      M.sidebars[tab] = nil
     end,
   })
 end
