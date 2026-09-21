@@ -95,8 +95,8 @@ end
 ---@param response? outline.ProviderSymbol[]
 ---@param opts? outline.OutlineOpts
 function Sidebar:initial_handler(response, opts)
-  -- A provider can respond after the tab containing this sidebar was closed.
-  if not self.view then
+  -- A provider can respond after its tab was closed or switched away from.
+  if not self.view or self.id ~= vim.api.nvim_get_current_tabpage() then
     return
   end
   if response == nil or type(response) ~= 'table' or self.view:is_open() then
@@ -303,6 +303,9 @@ end
 ---@param update_cursor? boolean
 ---@param set_cursor_to_node? outline.Symbol|outline.FlatSymbol
 function Sidebar:_update_lines(update_cursor, set_cursor_to_node)
+  if not self:has_code_win() then
+    return
+  end
   local current = self:build_outline(set_cursor_to_node)
   if update_cursor ~= false then
     self:update_cursor_pos(current)
@@ -351,8 +354,8 @@ end
 
 ---Re-request symbols from provider
 function Sidebar:__refresh()
-  -- A debounced refresh can run after TabClosed destroyed the sidebar.
-  if not self.view then
+  -- A debounced refresh can run after its tab was closed or switched away from.
+  if not self.view or self.id ~= vim.api.nvim_get_current_tabpage() then
     return
   end
   local buf = vim.api.nvim_get_current_buf()
@@ -368,7 +371,12 @@ function Sidebar:__refresh()
   self.provider, self.provider_info = providers.find_provider()
   if self.provider then
     self.provider.request_symbols(function(res)
-      if self.view and self.view:is_open() then
+      if
+        self.view
+        and self.view:is_open()
+        and self.id == vim.api.nvim_get_current_tabpage()
+        and buf == vim.api.nvim_get_current_buf()
+      then
         self:refresh_handler(res)
       end
     end, nil, self.provider_info)
